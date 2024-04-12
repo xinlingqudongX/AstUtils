@@ -232,3 +232,95 @@ export function replaceVoid(
 
     return newNode;
 }
+
+export function watchChange(watchTarget, targetName) {
+    if (typeof watchTarget !== "object" || watchTarget === null) {
+        return watchTarget;
+    }
+    function envResult(codeLine = 62) {
+        let now_name = "";
+        if (globalThis.process) {
+            const file_path = process.argv[1];
+            const file_paths = file_path.split("\\");
+            now_name = file_paths[file_paths.length - 1];
+        }
+
+        const err = new Error();
+        let stacks = err.stack.split("\n");
+        stacks = stacks
+            .filter((item) => item.includes(now_name))
+            .filter((stackItem) => {
+                const res = /^.*[\\/](.*?):(\d+):(\d*)/.exec(stackItem);
+                if (!res) {
+                    return false;
+                }
+                const [source, filename, line, lineIndex] = res;
+                if (parseInt(line, 10) <= codeLine) {
+                    return false;
+                }
+                return true;
+            });
+        const val = stacks[0];
+        const res = /^.*[\\/](.*?):(\d+):(\d*)/.exec(val);
+        if (!res) {
+            throw Error("捕获错误");
+        }
+        const [source, filename, line, lineIndex] = res;
+
+        return {
+            source,
+            filename,
+            line: Number(line),
+            lineIndex: Number(lineIndex),
+            stacks,
+        };
+    }
+    const proxyTarget = new Proxy(watchTarget, {
+        get(target, prop, receiver) {
+            const result = envResult();
+            let jStr = target;
+            try {
+                jStr = JSON.stringify(target, function (key, value) {
+                    if (value == window) {
+                        return undefined;
+                    }
+                    return value;
+                });
+            } catch (error) {}
+            console.log(
+                `${targetName}:${result.line}行${result.lineIndex}:调用`,
+                jStr,
+                prop
+            );
+            const res = Reflect.get(target, prop, receiver);
+            console.log(
+                `${targetName}:${result.line}行${result.lineIndex}:返回`,
+                res
+            );
+            return res;
+        },
+        set(target, prop, value, receiver) {
+            const result = envResult();
+            let jStr = target;
+            try {
+                jStr = JSON.stringify(target, function (key, value) {
+                    if (value == window) {
+                        return undefined;
+                    }
+                    return value;
+                });
+            } catch (error) {}
+            console.log(
+                `${targetName}参数:${result.line}行${result.lineIndex}:设置`,
+                jStr,
+                prop,
+                "值",
+                value
+            );
+            const success = Reflect.set(target, prop, value, receiver);
+            return success;
+        },
+    });
+
+    return proxyTarget;
+}

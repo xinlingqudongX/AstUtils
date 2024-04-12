@@ -142,21 +142,24 @@ function main() {
 
     loadGlobalVariable(ast);
 
-    ast = estraverse.replace(ast, {
-        enter: ifBlockSupplement,
-    });
-    ast = estraverse.replace(ast, {
-        enter: replaceVoid,
-    });
-    ast = estraverse.replace(ast, {
-        enter: flatStatement,
-    });
-    ast = estraverse.replace(ast, {
-        enter: replaceContion,
-        leave(node, parent) {
-            console.log("离开节点", node.type);
-        },
-    });
+    let times = 3;
+    while (times--) {
+        ast = estraverse.replace(ast, {
+            enter: ifBlockSupplement,
+        });
+        ast = estraverse.replace(ast, {
+            enter: replaceVoid,
+        });
+        ast = estraverse.replace(ast, {
+            enter: flatStatement,
+        });
+        ast = estraverse.replace(ast, {
+            enter: replaceContion,
+            leave(node, parent) {
+                console.log("离开节点", node.type);
+            },
+        });
+    }
 
     const endTime = Date.now();
     console.log(`转换AST完成，耗时:${(endTime - startTime) / 60}秒`);
