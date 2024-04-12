@@ -82,6 +82,7 @@ export function flatStatement(
     }
 
     if (Object.keys(indexMap).length > 0) {
+        console.log("扩展");
         for (let index in indexMap) {
             blockNode.body.splice(index, 1, indexMap[index]);
         }
@@ -121,6 +122,8 @@ export function replaceContion(
             continue;
         }
 
+        console.log("替换");
+
         let newNode = {
             type: Syntax.IfStatement,
             alternate: {
@@ -147,4 +150,85 @@ export function replaceContion(
     }
 
     return blockNode;
+}
+
+//  代码块补充
+export function ifBlockSupplement(
+    blockNode: ESTree.Node,
+    parent: null | ESTree.Node
+) {
+    if (!Array.isArray(blockNode.body)) {
+        return blockNode;
+    }
+
+    for (let itemIndex in blockNode.body) {
+        const item = blockNode.body[itemIndex];
+        if (!item) {
+            debugger;
+        }
+
+        // if (item.type === Syntax.IfStatement) {
+        //     debugger;
+        // }
+        //  if条件补充大括号
+        if (item.type === Syntax.IfStatement) {
+            if (item.consequent.type !== Syntax.BlockStatement) {
+                let consequentNode = {
+                    type: Syntax.BlockStatement,
+                    body: [item.consequent],
+                };
+                item.consequent = consequentNode;
+            }
+            if (
+                item.alternate &&
+                item.alternate.type !== Syntax.BlockStatement
+            ) {
+                let alternateNode = {
+                    type: Syntax.BlockStatement,
+                    body: [item.alternate],
+                };
+
+                item.alternate = alternateNode;
+            }
+        }
+
+        if (item.type === Syntax.ForStatement) {
+            if (item.body.type !== Syntax.BlockStatement) {
+                const node = {
+                    type: Syntax.BlockStatement,
+                    body: [item.body],
+                };
+                item.body = node;
+            }
+        }
+    }
+    return blockNode;
+}
+
+//  替换void
+export function replaceVoid(
+    blockNode: ESTree.Node,
+    parent: null | ESTree.Node
+) {
+    if (blockNode.type !== Syntax.UnaryExpression) {
+        return blockNode;
+    }
+
+    if (
+        blockNode.operator !== "void" &&
+        blockNode.argument.type !== Syntax.Literal
+    ) {
+        return blockNode;
+    }
+
+    if (blockNode.argument.value !== 0) {
+        return blockNode;
+    }
+
+    const newNode = {
+        type: Syntax.Identifier,
+        name: "undefined",
+    };
+
+    return newNode;
 }

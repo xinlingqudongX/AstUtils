@@ -6,7 +6,12 @@ import { Syntax } from "estraverse";
 import babelCore from "@babel/core";
 import babelTypes from "@babel/types";
 import escodegen from "escodegen";
-import { replaceContion, flatStatement } from "./util";
+import {
+    replaceContion,
+    flatStatement,
+    ifBlockSupplement,
+    replaceVoid,
+} from "./util";
 // const esprima = require("esprima");
 // const estraverse = require("estraverse");
 
@@ -127,6 +132,7 @@ function unaryParse(codeAst: esprima.Program) {
 }
 
 function main() {
+    const startTime = Date.now();
     const jsData = Fs.readFileSync("./test1.js", {
         encoding: "utf-8",
     });
@@ -137,17 +143,28 @@ function main() {
     loadGlobalVariable(ast);
 
     ast = estraverse.replace(ast, {
+        enter: ifBlockSupplement,
+    });
+    ast = estraverse.replace(ast, {
+        enter: replaceVoid,
+    });
+    ast = estraverse.replace(ast, {
         enter: flatStatement,
     });
     ast = estraverse.replace(ast, {
         enter: replaceContion,
+        leave(node, parent) {
+            console.log("离开节点", node.type);
+        },
     });
 
+    const endTime = Date.now();
+    console.log(`转换AST完成，耗时:${(endTime - startTime) / 60}秒`);
     const jsCode = escodegen.generate(ast);
-
     Fs.writeFileSync("./ast_code.js", jsCode, {
         encoding: "utf-8",
     });
+    console.log("生成文件");
 }
 
 main();
