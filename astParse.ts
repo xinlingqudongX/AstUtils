@@ -11,6 +11,7 @@ import {
     flatStatement,
     ifBlockSupplement,
     replaceVoid,
+    replaceReturn,
 } from "./util";
 // const esprima = require("esprima");
 // const estraverse = require("estraverse");
@@ -155,9 +156,9 @@ function main() {
         });
         ast = estraverse.replace(ast, {
             enter: replaceContion,
-            leave(node, parent) {
-                console.log("离开节点", node.type);
-            },
+        });
+        ast = estraverse.replace(ast, {
+            enter: replaceReturn,
         });
     }
 
