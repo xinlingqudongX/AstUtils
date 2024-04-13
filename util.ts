@@ -163,6 +163,39 @@ export function replaceContion(
 
                 blockNode.body.splice(itemIndex, 1, newNode);
             }
+
+            //  三元表达式转换
+            if (
+                itemNode.expression.type === Syntax.SequenceExpression &&
+                itemNode.expression.expressions.length > 1 &&
+                itemNode.expression.expressions[0].type ===
+                    Syntax.ConditionalExpression
+            ) {
+                let otherConsequent = itemNode.expression.expressions.slice(
+                    1,
+                    itemNode.expression.expressions.length
+                );
+
+                otherConsequent.unshift(
+                    itemNode.expression.expressions[0].alternate
+                );
+                otherConsequent = otherConsequent.map((item) => {
+                    return {
+                        type: Syntax.ExpressionStatement,
+                        expression: item,
+                    };
+                });
+                let newNode = {
+                    type: Syntax.IfStatement,
+                    consequent: {
+                        type: Syntax.BlockStatement,
+                        body: otherConsequent,
+                    },
+                    test: itemNode.expression.expressions[0].test,
+                };
+
+                blockNode.body.splice(itemIndex, 1, newNode);
+            }
         }
 
         //  有返回值但是返回的不是单独数据，进行替换分割
