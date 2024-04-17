@@ -4,6 +4,12 @@ import * as estraverse from "estraverse";
 import { Syntax } from "estraverse";
 import * as ESTree from "estree";
 
+const assignmentComment = {
+    "<<": "左移",
+    ">>": "右移",
+    "&": "按位与",
+    "|": "按位或",
+};
 //  全局变量下的扩展
 export function flatStatement(
     blockNode: ESTree.Node,
@@ -102,7 +108,9 @@ export function replaceContion(
         return blockNode;
     }
 
-    for (let itemIndex in blockNode.body) {
+    const logIndexMap = {};
+    for (let index in blockNode.body) {
+        let itemIndex = parseInt(index);
         let itemNode = blockNode.body[itemIndex];
         if (itemNode.type === Syntax.ExpressionStatement) {
             if (itemNode.expression.type === Syntax.ConditionalExpression) {
@@ -196,6 +204,19 @@ export function replaceContion(
 
                 blockNode.body.splice(itemIndex, 1, newNode);
             }
+
+            if (itemNode.expression.type === Syntax.SequenceExpression) {
+                const flatNodes = itemNode.expression.expressions.map(
+                    (item) => {
+                        return {
+                            type: Syntax.ExpressionStatement,
+                            expression: item,
+                        };
+                    }
+                );
+
+                blockNode.body.splice(itemIndex, 1, ...flatNodes);
+            }
         }
 
         //  有返回值但是返回的不是单独数据，进行替换分割
@@ -215,6 +236,16 @@ export function replaceContion(
 
                 itemNode.argument = idenNode;
                 blockNode.body.splice(itemIndex, 0, ...otherNode);
+            }
+        }
+
+        //  展开相同的返回对象
+    }
+
+    if (Object.keys(logIndexMap).length > 0) {
+        for (let index = blockNode.body.length; index >= 0; index--) {
+            if (logIndexMap[index]) {
+                blockNode.body.splice(index, 0, logIndexMap[index]);
             }
         }
     }
@@ -319,7 +350,7 @@ export function watchChange(watchTarget, targetName) {
 
         const err = new Error();
         let stacks = err.stack.split("\n");
-        stacks = stacks
+        let filterStacks = stacks
             .filter((item) => item.includes(now_name))
             .filter((stackItem) => {
                 const res = /^.*[\\/](.*?):(\d+):(\d*)/.exec(stackItem);
@@ -327,12 +358,15 @@ export function watchChange(watchTarget, targetName) {
                     return false;
                 }
                 const [source, filename, line, lineIndex] = res;
+                if (!now_name) {
+                    now_name = filename;
+                }
                 if (parseInt(line, 10) <= codeLine) {
                     return false;
                 }
                 return true;
             });
-        const val = stacks[0];
+        const val = filterStacks[0];
         const res = /^.*[\\/](.*?):(\d+):(\d*)/.exec(val);
         if (!res) {
             throw Error("捕获错误");
@@ -349,24 +383,28 @@ export function watchChange(watchTarget, targetName) {
     }
     const proxyTarget = new Proxy(watchTarget, {
         get(target, prop, receiver) {
+            console.log(target, prop, receiver);
             const result = envResult();
             let jStr = target;
             try {
                 jStr = JSON.stringify(target, function (key, value) {
                     if (value == window) {
-                        return undefined;
+                        return {};
                     }
                     return value;
                 });
             } catch (error) {}
             console.log(
-                `${targetName}:${result.line}行${result.lineIndex}:调用`,
-                jStr,
+                `${result.line}行${result.lineIndex}:${targetName}:对象`,
+                jStr
+            );
+            console.log(
+                `${result.line}行${result.lineIndex}:${targetName}:调用`,
                 prop
             );
             const res = Reflect.get(target, prop, receiver);
             console.log(
-                `${targetName}:${result.line}行${result.lineIndex}:返回`,
+                `${result.line}行${result.lineIndex}:${targetName}:返回`,
                 res
             );
             return res;
@@ -377,16 +415,21 @@ export function watchChange(watchTarget, targetName) {
             try {
                 jStr = JSON.stringify(target, function (key, value) {
                     if (value == window) {
-                        return undefined;
+                        return {};
                     }
                     return value;
                 });
             } catch (error) {}
             console.log(
-                `${targetName}参数:${result.line}行${result.lineIndex}:设置`,
-                jStr,
-                prop,
-                "值",
+                `${result.line}行${result.lineIndex}:${targetName}:对象`,
+                jStr
+            );
+            console.log(
+                `${result.line}行${result.lineIndex}:${targetName}:设置`,
+                prop
+            );
+            console.log(
+                `${result.line}行${result.lineIndex}:${targetName}:值`,
                 value
             );
             const success = Reflect.set(target, prop, value, receiver);
