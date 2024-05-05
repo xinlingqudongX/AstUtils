@@ -12,6 +12,8 @@ import {
     ifBlockSupplement,
     replaceVoid,
     replaceReturn,
+    watchChange,
+    forVariable,
 } from "./util";
 // const esprima = require("esprima");
 // const estraverse = require("estraverse");
@@ -138,7 +140,9 @@ function main() {
         encoding: "utf-8",
     });
     // console.log(esprima);
-    let ast = esprima.parseScript(jsData);
+    let ast = esprima.parseScript(jsData, {
+        comment: true,
+    });
     console.log(ast);
 
     loadGlobalVariable(ast);
@@ -160,12 +164,15 @@ function main() {
         ast = estraverse.replace(ast, {
             enter: replaceReturn,
         });
+        ast = estraverse.replace(ast, {
+            enter: forVariable,
+        });
     }
 
     const endTime = Date.now();
     console.log(`转换AST完成，耗时:${(endTime - startTime) / 60}秒`);
     const jsCode = escodegen.generate(ast);
-    Fs.writeFileSync("./ast_code.js", jsCode, {
+    Fs.writeFileSync("./ast_test.js", jsCode, {
         encoding: "utf-8",
     });
     console.log("生成文件");

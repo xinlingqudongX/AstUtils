@@ -481,3 +481,51 @@ export function replaceReturn(
 
     return blockNode;
 }
+
+
+export function ifToSwitch(blockNode: ESTree.Node, parent: ESTree.Node | null) {
+    if (!blockNode.type !== Syntax.IfStatement) {
+        return;
+    }
+}
+
+//  for变量声明
+export function forVariable(
+    blockNode: ESTree.Node,
+    parent: ESTree.Node | null
+) {
+    if (blockNode.type !== Syntax.BlockStatement) {
+        return;
+    }
+
+    for (let index in blockNode.body) {
+        let nodeIndex = parseInt(index, 10);
+        let node = blockNode.body[index];
+
+        console.log(node);
+        if (node.type !== Syntax.ForStatement) {
+            continue;
+        }
+
+        if (
+            node.init.type !== Syntax.SequenceExpression ||
+            !Array.isArray(node.init.expressions) ||
+            node.init.expressions.length <= 1
+        ) {
+            continue;
+        }
+
+        const otherNodes = node.init.expressions.splice(
+            0,
+            node.init.expressions.length - 1
+        );
+        for (let otherNode of otherNodes) {
+            blockNode.body.splice(nodeIndex, 0, {
+                type: Syntax.ExpressionStatement,
+                expression: otherNode,
+            });
+        }
+    }
+
+    return blockNode;
+}
